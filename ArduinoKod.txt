@@ -1,0 +1,293 @@
+#include <Servo.h>
+
+/*
+  4-digit 7-seg CLOCK (MM:SS) - Common Anode
+  Left servo = minutes (A0)
+  Right servo = seconds (A1)
+*/
+
+const byte segPins[7] = {2, 3, 4, 5, 6, 7, 8};   // A,B,C,D,E,F,G
+const byte digPins[4] = {9, 10, 11, 12};         // D1..D4
+
+const byte SEG_ON  = LOW;    // common anode
+const byte SEG_OFF = HIGH;
+
+// Ako cifre ne rade, probaj obrnuto:
+// const byte DIG_ON = LOW; const byte DIG_OFF = HIGH;
+const byte DIG_ON  = HIGH;
+const byte DIG_OFF = LOW;
+
+const byte digitMaskCC[10] = {
+  0b00111111, //0
+  0b00000110, //1
+  0b01011011, //2
+  0b01001111, //3
+  0b01100110, //4
+  0b01101101, //5
+  0b01111101, //6
+  0b00000111, //7
+  0b01111111, //8
+  0b01101111  //9
+};
+
+byte disp[4] = {0, 0, 0, 0};
+
+int minutes = 0;
+int seconds = 0;
+
+unsigned long lastTickMs = 0;
+
+// ===== SERVOS =====
+Servo servoMin;   // levi
+Servo servoSec;   // desni
+
+const byte SERVO_MIN_PIN = A0; // levi motor
+const byte SERVO_SEC_PIN = A1; // desni motor
+
+int lastMinShown = -1;
+int lastSecShown = -1;
+
+void setSegments(byte digit)
+{
+  byte m = digitMaskCC[digit];
+  for (byte s = 0; s < 7; s++) {
+    bool bitOn = (m >> s) & 0x01;
+    digitalWrite(segPins[s], bitOn ? SEG_ON : SEG_OFF);
+  }
+}
+
+void allDigitsOff()
+{
+  for (byte i = 0; i < 4; i++) digitalWrite(digPins[i], DIG_OFF);
+}
+
+void showOneDigit(byte pos, byte digit)
+{
+  allDigitsOff();
+  setSegments(digit);
+  digitalWrite(digPins[pos], DIG_ON);
+}
+
+void refreshDisplay()
+{
+  for (byte i = 0; i < 4; i++) {
+    showOneDigit(i, disp[i]);
+    delayMicroseconds(150);
+  }
+}
+
+void updateBufferMMSS()
+{
+  disp[0] = (minutes / 10) % 10;
+  disp[1] = minutes % 10;
+  disp[2] = (seconds / 10) % 10;
+  disp[3] = seconds % 10;
+}
+
+void updateServos()
+{
+  // Clockwise: obično je 0->180 u smeru kazaljke, ali zavisi kako si montirala kazaljku.
+  // Ako ide naopako, zameni 0 i 180 u map-u.
+   
+  if (seconds != lastSecShown) {
+    int angS = map(seconds, 0, 59, 0, 360);   // clockwise
+    servoSec.write(angS);
+    lastSecShown = seconds;
+  }
+  
+  if (seconds==0 && minutes != lastMinShown) {
+    int angM = map(minutes, 0, 59, 0, 360);   // clockwise
+    servoMin.write(angM);
+    lastMinShown = minutes;
+  }
+
+}
+
+void tickTime()
+{
+  unsigned long now = millis();
+  while (now - lastTickMs >= 1000) {
+    lastTickMs += 1000;
+
+    seconds++;
+    if (seconds >= 60) {
+      seconds = 0;
+      minutes++;
+      if (minutes >= 60) minutes = 0;
+    }
+
+    updateBufferMMSS();
+    updateServos();
+  }
+}
+
+void setup()
+{
+  for (byte i = 0; i < 7; i++) pinMode(segPins[i], OUTPUT);
+  for (byte i = 0; i < 4; i++) pinMode(digPins[i], OUTPUT);
+  allDigitsOff();
+
+  // start od 00:00
+  minutes = 0;
+  seconds = 0;
+
+  servoMin.attach(SERVO_MIN_PIN);
+  servoSec.attach(SERVO_SEC_PIN);
+
+  lastTickMs = millis();
+  updateBufferMMSS();
+  updateServos();
+}
+
+void loop()
+{
+  tickTime();
+  refreshDisplay();
+}
+
+On Mon, Dec 29, 2025 at 2:57 PM Anastasija Gnjatovic <gnjatovicanastasija@gmail.com> wrote:
+#include <Servo.h>
+
+/*
+  4-digit 7-seg CLOCK (MM:SS) - Common Anode
+  Left servo = minutes (A0)
+  Right servo = seconds (A1)
+*/
+
+const byte segPins[7] = {2, 3, 4, 5, 6, 7, 8};   // A,B,C,D,E,F,G
+const byte digPins[4] = {9, 10, 11, 12};         // D1..D4
+
+const byte SEG_ON  = LOW;    // common anode
+const byte SEG_OFF = HIGH;
+
+// Ako cifre ne rade, probaj obrnuto:
+// const byte DIG_ON = LOW; const byte DIG_OFF = HIGH;
+const byte DIG_ON  = HIGH;
+const byte DIG_OFF = LOW;
+
+const byte digitMaskCC[10] = {
+  0b00111111, //0
+  0b00000110, //1
+  0b01011011, //2
+  0b01001111, //3
+  0b01100110, //4
+  0b01101101, //5
+  0b01111101, //6
+  0b00000111, //7
+  0b01111111, //8
+  0b01101111  //9
+};
+
+byte disp[4] = {0, 0, 0, 0};
+
+int minutes = 0;
+int seconds = 0;
+
+unsigned long lastTickMs = 0;
+
+// ===== SERVOS =====
+Servo servoMin;   // levi
+Servo servoSec;   // desni
+
+const byte SERVO_MIN_PIN = A0; // levi motor
+const byte SERVO_SEC_PIN = A1; // desni motor
+
+int lastMinShown = -1;
+int lastSecShown = -1;
+
+void setSegments(byte digit)
+{
+  byte m = digitMaskCC[digit];
+  for (byte s = 0; s < 7; s++) {
+    bool bitOn = (m >> s) & 0x01;
+    digitalWrite(segPins[s], bitOn ? SEG_ON : SEG_OFF);
+  }
+}
+
+void allDigitsOff()
+{
+  for (byte i = 0; i < 4; i++) digitalWrite(digPins[i], DIG_OFF);
+}
+
+void showOneDigit(byte pos, byte digit)
+{
+  allDigitsOff();
+  setSegments(digit);
+  digitalWrite(digPins[pos], DIG_ON);
+}
+
+void refreshDisplay()
+{
+  for (byte i = 0; i < 4; i++) {
+    showOneDigit(i, disp[i]);
+    delayMicroseconds(1500);
+  }
+}
+
+void updateBufferMMSS()
+{
+  disp[0] = (minutes / 10) % 10;
+  disp[1] = minutes % 10;
+  disp[2] = (seconds / 10) % 10;
+  disp[3] = seconds % 10;
+}
+
+void updateServos()
+{
+  // Clockwise: obično je 0->180 u smeru kazaljke, ali zavisi kako si montirala kazaljku.
+  // Ako ide naopako, zameni 0 i 180 u map-u.
+
+  if (minutes != lastMinShown) {
+    int angM = map(minutes, 0, 59, 0, 180);   // clockwise
+    servoMin.write(angM);
+    lastMinShown = minutes;
+  }
+
+  if (seconds != lastSecShown) {
+    int angS = map(seconds, 0, 59, 0, 180);   // clockwise
+    servoSec.write(angS);
+    lastSecShown = seconds;
+  }
+}
+
+void tickTime()
+{
+  unsigned long now = millis();
+  while (now - lastTickMs >= 1000) {
+    lastTickMs += 1000;
+
+    seconds++;
+    if (seconds >= 60) {
+      seconds = 0;
+      minutes++;
+      if (minutes >= 60) minutes = 0;
+    }
+
+    updateBufferMMSS();
+    updateServos();
+  }
+}
+
+void setup()
+{
+  for (byte i = 0; i < 7; i++) pinMode(segPins[i], OUTPUT);
+  for (byte i = 0; i < 4; i++) pinMode(digPins[i], OUTPUT);
+  allDigitsOff();
+
+  // start od 00:00
+  minutes = 0;
+  seconds = 0;
+
+  servoMin.attach(SERVO_MIN_PIN);
+  servoSec.attach(SERVO_SEC_PIN);
+
+  lastTickMs = millis();
+  updateBufferMMSS();
+  updateServos();
+}
+
+void loop()
+{
+  tickTime();
+  refreshDisplay();
+}
